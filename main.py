@@ -12,6 +12,12 @@ class GuiProgram(Ui_MainWindow):
         self.targetOpen.clicked.connect(self.getTargetName)
         self.convertPy.clicked.connect(self.pyConvert)
 
+        self.process = QtCore.QProcess()
+        self.process.readyRead.connect(self.dataReady)
+
+        self.process.started.connect(lambda: self.convertPy.setEnabled(False))
+        self.process.finished.connect(lambda: self.convertPy.setEnabled(True))
+
     def getFileName(self):
         self.fileName = str(QtWidgets.QFileDialog.getOpenFileName(None, 'Open Script', os.getenv('HOME'))[0])
         self.scriptFileLocation.setText(self.fileName)
@@ -20,25 +26,27 @@ class GuiProgram(Ui_MainWindow):
         self.outputName = str(QtWidgets.QFileDialog.getExistingDirectory(None, 'Output Directory', os.getenv('HOME')))
         self.outputFolderLocation.setText(self.outputName)
 
+    def dataReady(self):
+        cursor = self.commandOutput.textCursor()
+        cursor.movePosition(cursor.End)
+        self.commandOutput.insertPlainText(str(self.process.ready()))
+        self.commandOutput.ensureCursorVisible()
+
     def pyConvert(self):
-        command = "pyinstaller"
+        command = ""
         if self.windowedOption.isChecked():
             command += " -w"
         if self.oneFile.isChecked():
             command += " -F"
-        command += " --distpath "
-        command += self.outputName
+        #command += " --distpath "
+        #command += self.outputName
         command += " \""
         command += os.path.normpath(self.fileName)
         command += "\""
 
-        self.process = QtCore.QProcess()
-        self.process.connect(SIGNAL("readyReadStdout()"))
-        self.process.connect(self.readOutput)
-        self.process.connect(SIGNAL("readyReadStderr()"))
-        self.process.connect(self.readErrors)
-        self.process.setArguments(QStringList.split(" ", command))
-        self.process.start()
+        self.commandOutput.insertPlainText("pyinstaller" + command)
+
+        self.process.start("pyinstaller", command.split())
 
     def readOutput(self):
         self.commandOutput.append(QString(self.process.readStdout()))
